@@ -42,7 +42,7 @@ def lambda_handler(event, context):
         # or handle otherwise when required query param is missing
         return {'statusCode': 400, 'body': ''}
 
-    movie_path = 'movies/movie_' + movie_id
+    movie_path = 'movies/movie_' + movie_id + "/index.m3u8"
     # if  movie_path starts with '/', remove it.
     movie_path = movie_path[1:] if movie_path[0] == '/' else movie_path
     movie_folder_path = '/'.join(movie_path.split('/')[:-1])
