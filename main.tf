@@ -66,3 +66,86 @@ resource "aws_cloudfront_distribution" "cdn" {
 
   price_class = "PriceClass_100"
 }
+
+data "aws_iam_policy_document" "lambda_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "lambda_execution_role" {
+  name               = "lambda_execution_role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role_policy.json
+}
+
+data "aws_iam_policy" "lambda_basic_execution" {
+  arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution_attach" {
+  role       = aws_iam_role.lambda_execution_role.name
+  policy_arn = data.aws_iam_policy.lambda_basic_execution.arn
+}
+
+data "aws_secretsmanager_secret" "signurl" {
+  name = var.sm_secret_name
+}
+
+resource "aws_iam_policy" "lambda_secret_policy" {
+  name = "lambda-read-signurl-secret"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Effect   = "Allow"
+        Resource = data.aws_secretsmanager_secret.signurl.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_secret_readonly_attach" {
+  role       = aws_iam_role.lambda_execution_role.name
+  policy_arn = aws_iam_policy.lambda_secret_policy.arn
+}
+
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/sign.py"
+  output_path = "${path.module}/lambda/sign_function_payload.zip"
+}
+
+resource "aws_lambda_layer_version" "rsa_layer" {
+  layer_name               = "rsa_layer"
+  filename                 = "layer.zip"
+  source_code_hash         = filebase64sha256("layer.zip")
+  compatible_architectures = ["x86_64"]
+  compatible_runtimes      = ["python3.13"]
+}
+
+resource "aws_lambda_function" "sign_function" {
+  filename         = data.archive_file.lambda_zip.output_path
+  function_name    = "sign_function"
+  layers           = [aws_lambda_layer_version.rsa_layer.arn]
+  role             = aws_iam_role.lambda_execution_role.arn
+  handler          = "sign.lambda_handler"
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+
+  environment {
+    variables = {
+      CF_KEY_ID      = var.cf_key_id
+      CF_URL         = aws_cloudfront_distribution.cdn.domain_name
+      SM_SECRET_NAME = var.sm_secret_name
+    }
+  }
+}
