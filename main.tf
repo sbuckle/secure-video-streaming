@@ -62,20 +62,11 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   default_cache_behavior {
-    cache_policy_id  = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-origin"
+    target_origin_id = "signing-api-origin"
 
     viewer_protocol_policy = "redirect-to-https"
-  }
-
-  ordered_cache_behavior {
-    path_pattern           = "/content/*"
-    target_origin_id       = "signing-api-origin"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
 
     forwarded_values {
       query_string = true
@@ -83,6 +74,19 @@ resource "aws_cloudfront_distribution" "cdn" {
         forward = "none"
       }
     }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  ordered_cache_behavior {
+    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+    path_pattern           = "*.m3u8"
+    target_origin_id       = "S3-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
   }
 
   viewer_certificate {
