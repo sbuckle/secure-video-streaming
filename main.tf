@@ -41,6 +41,17 @@ resource "aws_cloudfront_distribution" "cdn" {
     origin_access_control_id = aws_cloudfront_origin_access_control.default.id
     origin_id                = "S3-origin"
   }
+
+  origin {
+    origin_id   = "signing-api-origin"
+    domain_name = replace(aws_apigatewayv2_api.sign_api.api_endpoint, "https://", "")
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
   enabled         = true
   is_ipv6_enabled = true
 
@@ -57,7 +68,21 @@ resource "aws_cloudfront_distribution" "cdn" {
     target_origin_id = "S3-origin"
 
     viewer_protocol_policy = "redirect-to-https"
+  }
 
+  ordered_cache_behavior {
+    path_pattern           = "/content/*"
+    target_origin_id       = "signing-api-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
   }
 
   viewer_certificate {
@@ -65,6 +90,11 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   price_class = "PriceClass_100"
+}
+
+resource "aws_cloudfront_key_group" "cf_key_group" {
+  name  = "url_signers"
+  items = [var.cf_key_id]
 }
 
 data "aws_iam_policy_document" "lambda_assume_role_policy" {
