@@ -52,6 +52,17 @@ resource "aws_cloudfront_distribution" "cdn" {
       origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
+
+  origin {
+    origin_id   = "rewrite-api-origin"
+    domain_name = replace(aws_apigatewayv2_api.rewrite_api.api_endpoint, "https://", "")
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
   enabled         = true
   is_ipv6_enabled = true
 
@@ -81,8 +92,27 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   ordered_cache_behavior {
-    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
     path_pattern           = "*.m3u8"
+    target_origin_id       = "rewrite-api-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  ordered_cache_behavior {
+    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+    path_pattern           = "*.ts"
     target_origin_id       = "S3-origin"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
@@ -215,4 +245,91 @@ resource "aws_lambda_permission" "apigw_invoke" {
   function_name = aws_lambda_function.sign_function.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.sign_api.execution_arn}/*/*"
+}
+
+resource "aws_iam_role" "rewrite_execution_role" {
+  name               = "rewrite_execution_role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "rewrite_lambda_basic_execution_attach" {
+  role       = aws_iam_role.rewrite_execution_role.name
+  policy_arn = data.aws_iam_policy.lambda_basic_execution.arn
+}
+
+resource "aws_iam_policy" "s3_bucket_policy" {
+  name = "s3-bucket-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:GetObject"
+        ]
+        Effect   = "Allow"
+        Resource = "${aws_s3_bucket.origin_bucket.arn}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "rewrite_lambda_s3_policy_attach" {
+  role       = aws_iam_role.rewrite_execution_role.name
+  policy_arn = aws_iam_policy.s3_bucket_policy.arn
+}
+
+data "archive_file" "rewrite_function_zip" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/rewrite.py"
+  output_path = "${path.module}/lambda/rewrite_function_payload.zip"
+}
+
+resource "aws_lambda_function" "rewrite_function" {
+  filename         = data.archive_file.rewrite_function_zip.output_path
+  function_name    = "rewrite_function"
+  role             = aws_iam_role.rewrite_execution_role.arn
+  handler          = "rewrite.lambda_handler"
+  source_code_hash = data.archive_file.rewrite_function_zip.output_base64sha256
+  runtime          = "python3.13"
+
+  environment {
+    variables = {
+      KEY_PREFIX = "-PREFIX"
+      S3_BUCKET  = var.bucket_name
+    }
+  }
+}
+
+resource "aws_apigatewayv2_api" "rewrite_api" {
+  name          = "rewrite-api"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_integration" "rewrite_lambda_integration" {
+  api_id                 = aws_apigatewayv2_api.rewrite_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.rewrite_function.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "rewrite_get_route" {
+  api_id    = aws_apigatewayv2_api.rewrite_api.id
+  route_key = "GET /{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.rewrite_lambda_integration.id}"
+}
+
+resource "aws_apigatewayv2_stage" "rewrite_default_stage" {
+  api_id      = aws_apigatewayv2_api.rewrite_api.id
+  name        = "$default"
+  auto_deploy = true
+}
+
+resource "aws_lambda_permission" "apigw_rewrite_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.rewrite_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.rewrite_api.execution_arn}/*/*"
 }
