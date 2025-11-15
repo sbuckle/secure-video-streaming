@@ -35,6 +35,10 @@ resource "aws_cloudfront_origin_access_control" "default" {
   signing_protocol                  = "sigv4"
 }
 
+data "aws_cloudfront_response_headers_policy" "cors_policy" {
+  name = "Managed-SimpleCORS"
+}
+
 resource "aws_cloudfront_distribution" "cdn" {
   origin {
     domain_name              = aws_s3_bucket.origin_bucket.bucket_regional_domain_name
@@ -108,15 +112,18 @@ resource "aws_cloudfront_distribution" "cdn" {
     min_ttl     = 0
     default_ttl = 0
     max_ttl     = 0
+
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.cors_policy.id
   }
 
   ordered_cache_behavior {
-    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
-    path_pattern           = "*.ts"
-    target_origin_id       = "S3-origin"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+    path_pattern               = "*.ts"
+    target_origin_id           = "S3-origin"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.cors_policy.id
   }
 
   viewer_certificate {
