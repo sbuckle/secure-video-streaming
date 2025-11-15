@@ -59,7 +59,7 @@ def lambda_handler(event, context):
         # Hardcoded for simplicity. It can be dynamic value that's retrieved from another source.
         expire_token_in_hours = 6
 
-        current_time = datetime.datetime.utcnow()
+        current_time = datetime.datetime.now(datetime.timezone.utc)
         expire_date = current_time + \
             datetime.timedelta(hours=expire_token_in_hours)
 
