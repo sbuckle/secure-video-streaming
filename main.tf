@@ -215,7 +215,7 @@ resource "aws_lambda_function" "sign_function" {
   environment {
     variables = {
       CF_KEY_ID      = var.cf_key_id
-      CF_URL         = aws_cloudfront_distribution.cdn.domain_name
+      CF_URL         = "https://${aws_cloudfront_distribution.cdn.domain_name}"
       SM_SECRET_NAME = var.sm_secret_name
     }
   }
