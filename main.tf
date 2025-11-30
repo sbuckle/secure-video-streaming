@@ -124,6 +124,7 @@ resource "aws_cloudfront_distribution" "cdn" {
     allowed_methods            = ["GET", "HEAD"]
     cached_methods             = ["GET", "HEAD"]
     response_headers_policy_id = data.aws_cloudfront_response_headers_policy.cors_policy.id
+    trusted_key_groups         = [aws_cloudfront_key_group.cf_key_group.id]
   }
 
   viewer_certificate {
