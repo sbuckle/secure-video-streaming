@@ -18,3 +18,9 @@ variable "cf_key_id" {
   description = "The id of the cloudfront key."
   type        = string
 }
+
+variable "cf_key_group_name" {
+  description = "The name of the cloudfront key group."
+  type        = string
+  default     = "url_signers"
+}

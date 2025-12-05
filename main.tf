@@ -135,7 +135,7 @@ resource "aws_cloudfront_distribution" "cdn" {
 }
 
 resource "aws_cloudfront_key_group" "cf_key_group" {
-  name  = "url_signers"
+  name  = var.cf_key_group_name
   items = [var.cf_key_id]
 }
 
