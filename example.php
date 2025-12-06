@@ -56,8 +56,8 @@ $modifiedUrl = addPrefixParams($playlistUrl);
 <body>
     <h2>PHP Version - HLS Player</h2>
 
-    <p><strong>Original generated playlist URL:</strong><br><?php echo htmlspecialchars($playlistUrl); ?></p>
-    <p><strong>Modified playlist URL:</strong><br><?php echo htmlspecialchars($modifiedUrl); ?></p>
+    <p><strong>Original generated playlist URL:</strong><br><?php echo $playlistUrl; ?></p>
+    <p><strong>Modified playlist URL:</strong><br><?php echo $modifiedUrl; ?></p>
 
     <video
         id="videoPlayer"
@@ -73,7 +73,7 @@ $modifiedUrl = addPrefixParams($playlistUrl);
         const player = videojs("videoPlayer");
 
         player.src({
-            src: "<?php echo htmlspecialchars($modifiedUrl); ?>",
+            src: "<?php echo $modifiedUrl; ?>",
             type: "application/x-mpegURL"
         });
 
