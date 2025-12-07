@@ -33,6 +33,7 @@ def lambda_handler(event, context):
 
         return {
             'statusCode': 200,
+            'headers': {'Content-Type': 'application/vnd.apple.mpegurl'},
             'body': resp_body
         }
     except Exception as e:
