@@ -74,7 +74,7 @@ $modifiedUrl = addPrefixParams($playlistUrl);
 
         player.src({
             src: "<?php echo $modifiedUrl; ?>",
-            type: "application/x-mpegURL"
+            type: "application/vnd.apple.mpegurl"
         });
 
         player.play();
