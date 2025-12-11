@@ -2,3 +2,5 @@
 .vscode
 terraform.tfstate*
 lambda/*.zip
+tfplan
+*.pem

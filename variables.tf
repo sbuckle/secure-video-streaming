@@ -9,18 +9,26 @@ variable "bucket_name" {
   type        = string
 }
 
-variable "sm_secret_name" {
-  description = "The name of the secret that contains the private key."
+variable "secret_name" {
+  description = "The name of the secret that contains the private key for signing CloudFront URLs."
   type        = string
-}
-
-variable "cf_key_id" {
-  description = "The id of the cloudfront key."
-  type        = string
+  default     = "signing_key"
 }
 
 variable "cf_key_group_name" {
   description = "The name of the cloudfront key group."
   type        = string
   default     = "url_signers"
+}
+
+variable "public_key_file" {
+  description = "The name of the file that contains the public key."
+  type        = string
+  default     = "public_key.pem"
+}
+
+variable "private_key_file" {
+  description = "The name of the file that contains the private key."
+  type        = string
+  default     = "private_key.pem"
 }

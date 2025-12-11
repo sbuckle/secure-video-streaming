@@ -134,9 +134,14 @@ resource "aws_cloudfront_distribution" "cdn" {
   price_class = "PriceClass_100"
 }
 
+resource "aws_cloudfront_public_key" "public_key" {
+  encoded_key = file(var.public_key_file)
+  name        = "sign_key"
+}
+
 resource "aws_cloudfront_key_group" "cf_key_group" {
   name  = var.cf_key_group_name
-  items = [var.cf_key_id]
+  items = [aws_cloudfront_public_key.public_key.id]
 }
 
 data "aws_iam_policy_document" "lambda_assume_role_policy" {
@@ -164,8 +169,15 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution_attach" {
   policy_arn = data.aws_iam_policy.lambda_basic_execution.arn
 }
 
-data "aws_secretsmanager_secret" "signurl" {
-  name = var.sm_secret_name
+resource "aws_secretsmanager_secret" "private_key" {
+  name                    = var.secret_name
+  recovery_window_in_days = 0
+  description             = "The private key used to sign the URLS for CloudFront"
+}
+
+resource "aws_secretsmanager_secret_version" "private_key_version" {
+  secret_id     = aws_secretsmanager_secret.private_key.id
+  secret_string = base64encode(file(var.private_key_file))
 }
 
 resource "aws_iam_policy" "lambda_secret_policy" {
@@ -179,7 +191,7 @@ resource "aws_iam_policy" "lambda_secret_policy" {
           "secretsmanager:GetSecretValue"
         ]
         Effect   = "Allow"
-        Resource = data.aws_secretsmanager_secret.signurl.arn
+        Resource = aws_secretsmanager_secret.private_key.arn
       }
     ]
   })
@@ -215,9 +227,9 @@ resource "aws_lambda_function" "sign_function" {
 
   environment {
     variables = {
-      CF_KEY_ID      = var.cf_key_id
+      CF_KEY_ID      = aws_cloudfront_public_key.public_key.id
       CF_URL         = "https://${aws_cloudfront_distribution.cdn.domain_name}"
-      SM_SECRET_NAME = var.sm_secret_name
+      SM_SECRET_NAME = var.secret_name
     }
   }
 }
