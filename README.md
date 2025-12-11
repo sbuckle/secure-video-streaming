@@ -12,9 +12,7 @@ By default, Terraform will look in the current directory for the keys. If you've
 Run the following commands to deploy the solution to your AWS account:
 ```
 $ terraform init
-$ terraform plan \
-   -var="bucket_name=<bucket name>" \
-   -out=tfplan
+$ terraform plan -var="bucket_name=<bucket name>" -out=tfplan
 $ terraform apply tfplan
 ```
 More info [here](https://hlsbook.net/secure-video-streaming-using-cloudfront-signed-urls/).
