@@ -4,7 +4,6 @@
 // CONFIGURE THIS
 // -----------------------------
 $initialUrl = ""; 
-// The response should be plain text containing the .m3u8 playlist URL
 
 // Fetch the contents of the initial URL
 $playlistUrl = trim(file_get_contents($initialUrl));
@@ -45,7 +44,7 @@ $modifiedUrl = addPrefixParams($playlistUrl);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>PHP Version - VideoJS HLS Loader</title>
+    <title>PHP Version - HLS Player</title>
 
     <link href="https://vjs.zencdn.net/8.5.2/video-js.css" rel="stylesheet">
     <style>
